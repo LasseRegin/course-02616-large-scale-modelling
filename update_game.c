@@ -4,7 +4,8 @@
 
 #include "update_game.h"
 
-void update_game(bool* in_game, bool* out_game, int N) {
+void update_game(const bool * const restrict in_game, bool * const restrict out_game, const int N)
+{
   int N_pad = N + 2;
 
   for (int r = 1; r < N + 1; r++) {

@@ -6,14 +6,14 @@
 
 #include "update_game.h"
 
-void swap_arrays(bool** game_a, bool** game_b)
+static inline void swap_arrays(bool** game_a, bool** game_b)
 {
   bool* temp = *game_a;
   *game_a = *game_b;
   *game_b = temp;
 }
 
-void print_matrix(bool* game, int N) {
+static inline void print_matrix(const bool* const restrict game, const int N) {
   int N_pad = N + 2;
 
   for (int r = 0; r < N_pad; r++) {
@@ -33,10 +33,10 @@ int main(int argc, char* argv[])
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  int N = 3;
-  int N_pad = N + 2;
+  const int N = 3;
+  const int N_pad = N + 2;
 
-  bool init[5][5] = {
+  const bool init[5][5] = {
     {0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0},
     {0, 1, 1, 1, 0},
