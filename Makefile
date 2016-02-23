@@ -1,6 +1,10 @@
 
-gameoflife: main.o update_game.o
-	mpicc main.o update_game.o -o gameoflife
+OBJS = main.o initialize_game.o synchronize_game.o update_game.o debug_game.o
+
+all: gameoflife
+
+gameoflife: $(OBJS)
+	mpicc $(OBJS) -o gameoflife
 
 clean:
 	rm -f *.o

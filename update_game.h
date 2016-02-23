@@ -2,4 +2,6 @@
 
 #include <stdbool.h>
 
-void update_game(const bool * const restrict in_game, bool * const restrict out_game, const int rows, const int cols);
+#include "initialize_game.h"
+
+void update_game(GameInfo* game);

@@ -2,23 +2,36 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include "initialize_game.h"
 #include "update_game.h"
 
-void update_game(const bool * const restrict in_game, bool * const restrict out_game, const int rows, const int cols)
+static inline void swap_arrays(bool* restrict * array_a, bool* restrict * array_b)
 {
-  int N_pad = cols + 2;
+  bool* temp = *array_a;
+  *array_a = *array_b;
+  *array_b = temp;
+}
 
-  for (int r = 1; r < rows + 1; r++) {
-    for (int c = 1; c < cols + 1; c++) {
-      int sum = in_game[(r - 1) * N_pad + c - 1] + in_game[(r - 1) * N_pad + c + 0] + in_game[(r - 1) * N_pad + c + 1]
-              + in_game[(r + 0) * N_pad + c - 1] +                0                 + in_game[(r + 0) * N_pad + c + 1]
-              + in_game[(r + 1) * N_pad + c - 1] + in_game[(r + 1) * N_pad + c + 0] + in_game[(r + 1) * N_pad + c + 1];
+void update_game(GameInfo* game)
+{
+  int cols_pad = game->local_cols + 2;
+  bool* current = game->current;
 
-      if (sum == 3 || (sum == 2 && in_game[r * N_pad + c] == 1)) {
-        out_game[r * N_pad + c] = 1;
+  for (int r = 1; r < game->local_rows + 1; r++) {
+    for (int c = 1; c < game->local_cols + 1; c++) {
+      int sum = current[(r - 1) * cols_pad + c - 1] + current[(r - 1) * cols_pad + c + 0] + current[(r - 1) * cols_pad + c + 1]
+              + current[(r + 0) * cols_pad + c - 1] +                  0                  + current[(r + 0) * cols_pad + c + 1]
+              + current[(r + 1) * cols_pad + c - 1] + current[(r + 1) * cols_pad + c + 0] + current[(r + 1) * cols_pad + c + 1];
+
+      // Update previouse array, later previouse and current will be swapped
+      if (sum == 3 || (sum == 2 && current[r * cols_pad + c] == 1)) {
+        game->previouse[r * cols_pad + c] = 1;
       } else {
-        out_game[r * N_pad + c] = 0;
+        game->previouse[r * cols_pad + c] = 0;
       }
     }
   }
+
+  // Now make previouse the current
+  swap_arrays(&game->current, &game->previouse);
 }
