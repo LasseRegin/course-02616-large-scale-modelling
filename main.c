@@ -21,12 +21,13 @@ int main(int argc, char* argv[])
   GameInfo game;
   GameCommunicator communicator;
 
-  int N = 0;
+  int rows = 0, cols = 0;
   bool* init = NULL;
 
   // rank 0 Loads data
   if (rank == 0)  {
-    N = 8;
+    rows = 8;
+    cols = 8;
     init = (bool[64]) {
       0, 0, 0, 0, 0, 0, 0, 0,
       1, 1, 1, 0, 0, 1, 1, 1,
@@ -35,11 +36,11 @@ int main(int argc, char* argv[])
       0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0, 0, 0,
       1, 1, 1, 0, 0, 1, 1, 1,
-      0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0
     };
   }
 
-  if (initialize_game(&game, size, N, init)) {
+  if (initialize_game(&game, size, rows, cols, init)) {
     return 1;
   }
 

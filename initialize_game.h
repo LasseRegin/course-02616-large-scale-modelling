@@ -15,5 +15,5 @@ typedef struct GameInfo {
   MPI_Comm communicator;
 } GameInfo;
 
-int initialize_game(GameInfo* game, const int size, int N, const bool* const restrict init);
+int initialize_game(GameInfo* game, const int size, const int rows, const int cols, const bool* const restrict init);
 void destroy_game(GameInfo* game);

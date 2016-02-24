@@ -5,25 +5,26 @@
 
 #include "initialize_game.h"
 
-int initialize_game(GameInfo* game, const int size, int N, const bool* const restrict init)
+int initialize_game(GameInfo* game, const int size, int rows, int cols, const bool* const restrict init)
 {
-  MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&cols, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&rows, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   // Ensure that the data can be spread evenly
-  if (N % size != 0) {
+  if (rows % size != 0) {
     return 1;
   }
 
   // Set global properties
-  game->global_rows = N;
-  game->global_cols = N;
+  game->global_rows = rows;
+  game->global_cols = cols;
 
   // Set communicator
   game->communicator = MPI_COMM_WORLD;
 
   // Calculate the number of rows each process is responsibol for
-  game->local_cols = N;
-  game->local_rows = N / size;
+  game->local_rows = rows / size;
+  game->local_cols = cols;
 
   int local_cols_pad = game->local_cols + 2;
   int local_rows_pad = game->local_rows + 2;
