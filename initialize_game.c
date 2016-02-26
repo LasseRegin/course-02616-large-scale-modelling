@@ -30,9 +30,6 @@ static inline int scatter_matrix(
         bool* restrict const local_matrix , const int local_rows , const int local_cols ,
   const int* restrict const dims, const int sender_rank, const MPI_Comm communicator)
 {
-  int this_rank = 0;
-  MPI_Comm_rank(MPI_COMM_WORLD, &this_rank);
-
   // Define data type that will have appropiate block and stride length for
   // each sub matrix.
   MPI_Datatype send_blocktype;
@@ -58,10 +55,6 @@ static inline int scatter_matrix(
 
     count[rank] = 1;
     disp[rank] = coords[0] * global_cols * local_rows + coords[1] * local_cols;
-
-    if (this_rank == 0) {
-      printf("(%d, %d) disp: %d\n", coords[0], coords[1], disp[rank]);
-    }
   }
 
   // Scatter data
@@ -91,35 +84,37 @@ int initialize_game(
   MPI_Bcast(&rows, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
   // Create cartesian topology
-  int dims[2] = {0, 0}; // zero means not fixed, please replace
+  int node_dims[2] = {0, 0}; // zero means not fixed, please replace
   int periods[2] = {0, 0}; // zero means not periodic
   int coords[2] = {0, 0};
-  MPI_Dims_create(size, 2, dims);
-  MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 1, &game->communicator);
+  MPI_Dims_create(size, 2, node_dims);
+  MPI_Cart_create(MPI_COMM_WORLD, 2, node_dims, periods, 1, &game->communicator);
   MPI_Cart_coords(game->communicator, rank, 2, coords);
 
   // Ensure that the data can be spread evenly
-  if (rows % dims[0] != 0 || cols % dims[1] != 0) {
+  if (rows % node_dims[0] != 0 || cols % node_dims[1] != 0) {
     return 1;
   }
 
   // Set size properties
+  game->node_dims[0] = node_dims[0];
+  game->node_dims[1] = node_dims[1];
   game->global_rows = rows;
   game->global_cols = cols;
-  game->local_rows = rows / dims[0];
-  game->local_cols = cols / dims[1];
+  game->local_rows = rows / node_dims[0];
+  game->local_cols = cols / node_dims[1];
 
   // Set rank properties
-  game->rank.north = rank_by_shift(game->communicator, coords, dims, -1, 0);
-  game->rank.north_west = rank_by_shift(game->communicator, coords, dims, -1, -1);
-  game->rank.north_east = rank_by_shift(game->communicator, coords, dims, -1, 1);
+  game->rank.north = rank_by_shift(game->communicator, coords, node_dims, -1, 0);
+  game->rank.north_west = rank_by_shift(game->communicator, coords, node_dims, -1, -1);
+  game->rank.north_east = rank_by_shift(game->communicator, coords, node_dims, -1, 1);
 
-  game->rank.south = rank_by_shift(game->communicator, coords, dims, 1, 0);
-  game->rank.south_west = rank_by_shift(game->communicator, coords, dims, 1, -1);
-  game->rank.south_east = rank_by_shift(game->communicator, coords, dims, 1, 1);
+  game->rank.south = rank_by_shift(game->communicator, coords, node_dims, 1, 0);
+  game->rank.south_west = rank_by_shift(game->communicator, coords, node_dims, 1, -1);
+  game->rank.south_east = rank_by_shift(game->communicator, coords, node_dims, 1, 1);
 
-  game->rank.east = rank_by_shift(game->communicator, coords, dims, 0, 1);
-  game->rank.west = rank_by_shift(game->communicator, coords, dims, 0, -1);
+  game->rank.east = rank_by_shift(game->communicator, coords, node_dims, 0, 1);
+  game->rank.west = rank_by_shift(game->communicator, coords, node_dims, 0, -1);
 
   // allocate receive buffers
   game->recv.north = calloc(game->local_cols, sizeof(bool));
@@ -133,23 +128,20 @@ int initialize_game(
   game->recv.east = calloc(game->local_rows, sizeof(bool));
   game->recv.west = calloc(game->local_rows, sizeof(bool));
 
-  // Calculate size of data array with 1 border padding
-  int local_cols_pad = game->local_cols + 2;
-  int local_rows_pad = game->local_rows + 2;
-
   // Allocate request and status buffers
   game->request = (MPI_Request*) malloc(16 * sizeof(MPI_Request));
   game->status = (MPI_Status*) malloc(16 * sizeof(MPI_Status));
 
   // Allocate game data buffers
-  game->current = (bool*)calloc(local_rows_pad * local_cols_pad, sizeof(bool));
-  game->previouse = (bool*)calloc(local_rows_pad * local_cols_pad, sizeof(bool));
+  int full_size =  (game->local_cols + 2) * (game->local_rows + 2);
+  game->current = (bool*)calloc(full_size, sizeof(bool));
+  game->previouse = (bool*)calloc(full_size, sizeof(bool));
 
   // Scatter initial data. This is just for distributing the loaded data,
   // not for handling boundery conditions.
   scatter_matrix(init, game->global_rows, game->global_cols,
                  game->current, game->local_rows , game->local_cols ,
-                 dims, 0, game->communicator);
+                 node_dims, 0, game->communicator);
 
   return 0;
 }

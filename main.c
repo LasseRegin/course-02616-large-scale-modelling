@@ -56,7 +56,6 @@ int main(int argc, char* argv[])
     update_game(&game);
 
     // Gather the full game on rank 0 and print
-    // TODO: Update
     print_global_game(&game, rank);
   }
   */

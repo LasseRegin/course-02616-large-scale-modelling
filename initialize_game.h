@@ -31,6 +31,7 @@ struct TopologyRecv {
 
 typedef struct GameInfo {
   // size holders
+  int node_dims[2];
   int global_rows;
   int global_cols;
   int local_rows;
