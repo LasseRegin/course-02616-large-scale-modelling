@@ -105,28 +105,28 @@ int initialize_game(
   game->local_cols = cols / node_dims[1];
 
   // Set rank properties
-  game->rank.north = rank_by_shift(game->communicator, coords, node_dims, -1, 0);
-  game->rank.north_west = rank_by_shift(game->communicator, coords, node_dims, -1, -1);
-  game->rank.north_east = rank_by_shift(game->communicator, coords, node_dims, -1, 1);
+  game->topology.north.rank = rank_by_shift(game->communicator, coords, node_dims, -1, 0);
+  game->topology.north_west.rank = rank_by_shift(game->communicator, coords, node_dims, -1, -1);
+  game->topology.north_east.rank = rank_by_shift(game->communicator, coords, node_dims, -1, 1);
 
-  game->rank.south = rank_by_shift(game->communicator, coords, node_dims, 1, 0);
-  game->rank.south_west = rank_by_shift(game->communicator, coords, node_dims, 1, -1);
-  game->rank.south_east = rank_by_shift(game->communicator, coords, node_dims, 1, 1);
+  game->topology.south.rank = rank_by_shift(game->communicator, coords, node_dims, 1, 0);
+  game->topology.south_west.rank = rank_by_shift(game->communicator, coords, node_dims, 1, -1);
+  game->topology.south_east.rank = rank_by_shift(game->communicator, coords, node_dims, 1, 1);
 
-  game->rank.east = rank_by_shift(game->communicator, coords, node_dims, 0, 1);
-  game->rank.west = rank_by_shift(game->communicator, coords, node_dims, 0, -1);
+  game->topology.east.rank = rank_by_shift(game->communicator, coords, node_dims, 0, 1);
+  game->topology.west.rank = rank_by_shift(game->communicator, coords, node_dims, 0, -1);
 
   // allocate receive buffers
-  game->recv.north = calloc(game->local_cols, sizeof(bool));
-  game->recv.north_west = calloc(1, sizeof(bool));
-  game->recv.north_east = calloc(1, sizeof(bool));
+  game->topology.north.recv = calloc(game->local_cols, sizeof(bool));
+  game->topology.north_west.recv = calloc(1, sizeof(bool));
+  game->topology.north_east.recv = calloc(1, sizeof(bool));
 
-  game->recv.south = calloc(game->local_cols, sizeof(bool));
-  game->recv.south_west = calloc(1, sizeof(bool));
-  game->recv.south_east = calloc(1, sizeof(bool));
+  game->topology.south.recv = calloc(game->local_cols, sizeof(bool));
+  game->topology.south_west.recv = calloc(1, sizeof(bool));
+  game->topology.south_east.recv = calloc(1, sizeof(bool));
 
-  game->recv.east = calloc(game->local_rows, sizeof(bool));
-  game->recv.west = calloc(game->local_rows, sizeof(bool));
+  game->topology.east.recv = calloc(game->local_rows, sizeof(bool));
+  game->topology.west.recv = calloc(game->local_rows, sizeof(bool));
 
   // Allocate request and status buffers
   game->request = (MPI_Request*) malloc(16 * sizeof(MPI_Request));
@@ -146,21 +146,25 @@ int initialize_game(
   return 0;
 }
 
+static inline void destroy_direction_struct(struct TopologyDirection* direction) {
+  free(direction->recv);
+}
+
 void destroy_game(GameInfo* const game) {
   // free communicator
   MPI_Comm_free(&game->communicator);
 
-  // free receive buffers
-  free(game->recv.north);
-  free(game->recv.north_west);
-  free(game->recv.north_east);
+  // free topology direction stucts
+  destroy_direction_struct(&game->topology.north);
+  destroy_direction_struct(&game->topology.north_west);
+  destroy_direction_struct(&game->topology.north_east);
 
-  free(game->recv.south);
-  free(game->recv.south_west);
-  free(game->recv.south_east);
+  destroy_direction_struct(&game->topology.south);
+  destroy_direction_struct(&game->topology.south_west);
+  destroy_direction_struct(&game->topology.south_east);
 
-  free(game->recv.east);
-  free(game->recv.west);
+  destroy_direction_struct(&game->topology.east);
+  destroy_direction_struct(&game->topology.west);
 
   // free request and status buffers
   free(game->request);

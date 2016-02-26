@@ -3,30 +3,24 @@
 #include <mpi.h>
 #include <stdbool.h>
 
-struct TopologyRanks {
-  int north;
-  int north_west;
-  int north_east;
-
-  int south;
-  int south_west;
-  int south_east;
-
-  int east;
-  int west;
+struct TopologyDirection {
+  int rank;
+  bool* restrict recv;
+  MPI_Datatype send_type;
+  MPI_Datatype send_type_vec;
 };
 
-struct TopologyRecv {
-  bool* restrict north;
-  bool* restrict north_west;
-  bool* restrict north_east;
+struct Topology {
+  struct TopologyDirection north;
+  struct TopologyDirection north_west;
+  struct TopologyDirection north_east;
 
-  bool* restrict south;
-  bool* restrict south_west;
-  bool* restrict south_east;
+  struct TopologyDirection south;
+  struct TopologyDirection south_west;
+  struct TopologyDirection south_east;
 
-  bool* restrict east;
-  bool* restrict west;
+  struct TopologyDirection east;
+  struct TopologyDirection west;
 };
 
 typedef struct GameInfo {
@@ -41,11 +35,8 @@ typedef struct GameInfo {
   bool* restrict current;
   bool* restrict previouse;
 
-  // rank holders
-  struct TopologyRanks rank;
-
-  // receive buffers
-  struct TopologyRecv recv;
+  // Topology information and buffers
+  struct Topology topology;
 
   // Request and status buffers for MPI
   MPI_Request* restrict request;
