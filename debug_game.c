@@ -3,7 +3,7 @@
 
 #include "initialize_game.h"
 
-static inline void print_matrix(const bool* const restrict game, const int rows, const int cols) {
+void print_matrix(const bool* const restrict game, const int rows, const int cols) {
   char digits[] = {'0', '1'};
 
   char* outdata = (char*)malloc(rows * (cols * 2 + 1) + 2 * sizeof(char));
