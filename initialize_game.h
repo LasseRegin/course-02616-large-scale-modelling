@@ -5,9 +5,12 @@
 
 struct TopologyDirection {
   int rank;
-  bool* restrict recv;
+
+  int send_offset;
   MPI_Datatype send_type;
-  MPI_Datatype send_type_vec;
+
+  int recv_offset;
+  MPI_Datatype recv_type;
 };
 
 struct Topology {

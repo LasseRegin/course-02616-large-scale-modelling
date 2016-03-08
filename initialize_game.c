@@ -23,6 +23,65 @@ static inline int rank_by_shift(
   return rank;
 }
 
+// From http://stackoverflow.com/questions/10788180/sending-columns-of-a-matrix-using-mpi-scatter
+// I'm getting that MPI_Type_create_resized is not needed for MPI_send MPI_recv
+// calls.
+/*
+static inline void set_recv_row_type(
+  struct TopologyDirection* const direction,
+  const int offset, const int elements, const int cols)
+{
+  direction->recv_offset = offset;
+
+  MPI_Type_vector(elements, 1, cols, MPI_C_BOOL, &direction->recv_type);
+  MPI_Type_commit(&direction->recv_type);
+}
+*/
+static inline void set_row_type(
+  struct TopologyDirection* const send_direction, const int send_row,
+  struct TopologyDirection* const recv_direction, const int recv_row,
+  const int col_offset, const int elements, const int cols)
+{
+  send_direction->send_offset = col_offset + send_row * cols;
+  recv_direction->recv_offset = col_offset + recv_row * cols;
+
+  MPI_Type_contiguous(elements, MPI_C_BOOL, &send_direction->send_type);
+  MPI_Type_commit(&send_direction->send_type);
+
+  MPI_Type_contiguous(elements, MPI_C_BOOL, &recv_direction->recv_type);
+  MPI_Type_commit(&recv_direction->recv_type);
+}
+
+static inline void set_corner_type(
+  struct TopologyDirection* const send_direction, const int send_row, const int send_col_offset,
+  struct TopologyDirection* const recv_direction, const int recv_row, const int recv_col_offset,
+  const int cols)
+{
+  send_direction->send_offset = send_col_offset + send_row * cols;
+  recv_direction->recv_offset = recv_col_offset + recv_row * cols;
+
+  MPI_Type_contiguous(1, MPI_C_BOOL, &send_direction->send_type);
+  MPI_Type_commit(&send_direction->send_type);
+
+  MPI_Type_contiguous(1, MPI_C_BOOL, &recv_direction->recv_type);
+  MPI_Type_commit(&recv_direction->recv_type);
+}
+
+static inline void set_col_type(
+  struct TopologyDirection* const send_direction, const int send_col,
+  struct TopologyDirection* const recv_direction, const int recv_col,
+  const int row_offset, const int elements, const int cols)
+{
+  send_direction->send_offset = send_col + row_offset * cols;
+  recv_direction->recv_offset = recv_col + row_offset * cols;
+
+  MPI_Type_vector(elements, 1, cols, MPI_C_BOOL, &send_direction->send_type);
+  MPI_Type_commit(&send_direction->send_type);
+
+  MPI_Type_vector(elements, 1, cols, MPI_C_BOOL, &recv_direction->recv_type);
+  MPI_Type_commit(&recv_direction->recv_type);
+}
+
 // Inspired from:
 // http://stackoverflow.com/questions/7549316/mpi-partition-matrix-into-blocks
 static inline int scatter_matrix(
@@ -116,24 +175,48 @@ int initialize_game(
   game->topology.east.rank = rank_by_shift(game->communicator, coords, node_dims, 0, 1);
   game->topology.west.rank = rank_by_shift(game->communicator, coords, node_dims, 0, -1);
 
-  // allocate receive buffers
-  game->topology.north.recv = calloc(game->local_cols, sizeof(bool));
-  game->topology.north_west.recv = calloc(1, sizeof(bool));
-  game->topology.north_east.recv = calloc(1, sizeof(bool));
+  // Create stride types
+  // north -> south
+  set_row_type(&game->topology.north, 1,
+               &game->topology.south, game->local_rows + 1,
+               1, game->local_cols, game->local_cols + 2);
+  // north west -> south east
+  set_corner_type(&game->topology.north_west, 1                   , 1,
+                  &game->topology.south_east, game->local_rows + 1, game->local_cols + 1,
+                  game->local_cols + 2);
+  // north east -> south west
+  set_corner_type(&game->topology.north_east, 1                   , game->local_cols,
+                  &game->topology.south_west, game->local_rows + 1, 0,
+                  game->local_cols + 2);
 
-  game->topology.south.recv = calloc(game->local_cols, sizeof(bool));
-  game->topology.south_west.recv = calloc(1, sizeof(bool));
-  game->topology.south_east.recv = calloc(1, sizeof(bool));
+  // south -> north
+  set_row_type(&game->topology.south, game->local_rows,
+               &game->topology.north, 0,
+               1, game->local_cols, game->local_cols + 2);
+  // south west -> north east
+  set_corner_type(&game->topology.south_west, game->local_rows, 1,
+                  &game->topology.north_east, 0               , game->local_cols + 1,
+                  game->local_cols + 2);
+  // south east -> north west
+  set_corner_type(&game->topology.south_east, game->local_rows, game->local_cols,
+                  &game->topology.north_west, 0               , 0,
+                  game->local_cols + 2);
 
-  game->topology.east.recv = calloc(game->local_rows, sizeof(bool));
-  game->topology.west.recv = calloc(game->local_rows, sizeof(bool));
+  // east -> west
+  set_col_type(&game->topology.east, game->local_cols,
+               &game->topology.west, 0,
+               1, game->local_rows, game->local_cols + 2);
+  // west -> east
+  set_col_type(&game->topology.west, 1,
+               &game->topology.east, game->local_cols + 1,
+               1, game->local_rows, game->local_cols + 2);
 
   // Allocate request and status buffers
   game->request = (MPI_Request*) malloc(16 * sizeof(MPI_Request));
   game->status = (MPI_Status*) malloc(16 * sizeof(MPI_Status));
 
   // Allocate game data buffers
-  int full_size =  (game->local_cols + 2) * (game->local_rows + 2);
+  int full_size = (game->local_cols + 2) * (game->local_rows + 2);
   game->current = (bool*)calloc(full_size, sizeof(bool));
   game->previouse = (bool*)calloc(full_size, sizeof(bool));
 
@@ -147,7 +230,8 @@ int initialize_game(
 }
 
 static inline void destroy_direction_struct(struct TopologyDirection* direction) {
-  free(direction->recv);
+  MPI_Type_free(&direction->send_type);
+  MPI_Type_free(&direction->recv_type);
 }
 
 void destroy_game(GameInfo* const game) {

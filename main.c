@@ -44,21 +44,18 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  printf("[%d] local matrix (%d x %d):\n", rank, game.local_rows + 2, game.local_cols + 2);
-  print_matrix(game.current, game.local_rows + 2, game.local_cols + 2);
+  //printf("[%d] local matrix (%d x %d):\n", rank, game.local_rows + 2, game.local_cols + 2);
+  //print_matrix(game.current, game.local_rows + 2, game.local_cols + 2);
 
-  /*
   // perform iterations
   for (int iter = 0; iter < 5; iter++) {
-    // TODO: update
-    synchronize_game(&communicator, &game);
+    synchronize_game(&game);
 
     update_game(&game);
 
     // Gather the full game on rank 0 and print
     print_global_game(&game, rank);
   }
-  */
 
   // Free buffers
   destroy_game(&game);
