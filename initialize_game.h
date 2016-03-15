@@ -13,12 +13,19 @@ struct TopologyDirection {
   MPI_Datatype recv_type;
 };
 
+struct TopologyDirectionNew {
+  int rank;
+
+  MPI_Datatype send_type;
+  MPI_Datatype recv_type;
+};
+
 struct Topology {
-  struct TopologyDirection north;
+  struct TopologyDirectionNew north;
   struct TopologyDirection north_west;
   struct TopologyDirection north_east;
 
-  struct TopologyDirection south;
+  struct TopologyDirectionNew south;
   struct TopologyDirection south_west;
   struct TopologyDirection south_east;
 
