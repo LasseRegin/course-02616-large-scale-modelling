@@ -25,19 +25,6 @@ static inline void synchronize_direction(
   MPI_Request* const restrict request_array,
   const int tag)
 {
-  MPI_Isend(&game->current[send->send_offset], 1, send->send_type,
-            send->rank, tag, game->communicator, &request_array[0]);
-
-  MPI_Irecv(&game->current[recv->recv_offset], 1, recv->recv_type,
-            recv->rank, tag, game->communicator, &request_array[1]);
-}
-static inline void synchronize_direction_new(
-  const GameInfo* const game,
-  const struct TopologyDirectionNew* const send,
-  const struct TopologyDirectionNew* const recv,
-  MPI_Request* const restrict request_array,
-  const int tag)
-{
   MPI_Isend(game->current, 1, send->send_type,
             send->rank, tag, game->communicator, &request_array[0]);
 
@@ -48,7 +35,7 @@ static inline void synchronize_direction_new(
 void synchronize_game(const GameInfo* const game)
 {
   // north -> south
-  synchronize_direction_new(game,
+  synchronize_direction(game,
                         &game->topology.north, &game->topology.south,
                         &game->request[0], SEND_NORTH_TAG);
   // north west -> south east
@@ -61,7 +48,7 @@ void synchronize_game(const GameInfo* const game)
                         &game->request[4], SEND_NORTH_EAST_TAG);
 
   // south -> north
-  synchronize_direction_new(game,
+  synchronize_direction(game,
                         &game->topology.south, &game->topology.north,
                         &game->request[6], SEND_SOUTH_TAG);
   // south west -> north east

@@ -6,26 +6,16 @@
 struct TopologyDirection {
   int rank;
 
-  int send_offset;
-  MPI_Datatype send_type;
-
-  int recv_offset;
-  MPI_Datatype recv_type;
-};
-
-struct TopologyDirectionNew {
-  int rank;
-
   MPI_Datatype send_type;
   MPI_Datatype recv_type;
 };
 
 struct Topology {
-  struct TopologyDirectionNew north;
+  struct TopologyDirection north;
   struct TopologyDirection north_west;
   struct TopologyDirection north_east;
 
-  struct TopologyDirectionNew south;
+  struct TopologyDirection south;
   struct TopologyDirection south_west;
   struct TopologyDirection south_east;
 

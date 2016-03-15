@@ -26,34 +26,9 @@ static inline int rank_by_shift(
 // From http://stackoverflow.com/questions/10788180/sending-columns-of-a-matrix-using-mpi-scatter
 // I'm getting that MPI_Type_create_resized is not needed for MPI_send MPI_recv
 // calls.
-/*
-static inline void set_recv_row_type(
-  struct TopologyDirection* const direction,
-  const int offset, const int elements, const int cols)
-{
-  direction->recv_offset = offset;
-
-  MPI_Type_vector(elements, 1, cols, MPI_C_BOOL, &direction->recv_type);
-  MPI_Type_commit(&direction->recv_type);
-}
-*/
 static inline void set_row_type(
   struct TopologyDirection* const send_direction, const int send_row,
   struct TopologyDirection* const recv_direction, const int recv_row,
-  const int col_offset, const int elements, const int cols)
-{
-  send_direction->send_offset = col_offset + send_row * cols;
-  recv_direction->recv_offset = col_offset + recv_row * cols;
-
-  MPI_Type_contiguous(elements, MPI_C_BOOL, &send_direction->send_type);
-  MPI_Type_commit(&send_direction->send_type);
-
-  MPI_Type_contiguous(elements, MPI_C_BOOL, &recv_direction->recv_type);
-  MPI_Type_commit(&recv_direction->recv_type);
-}
-static inline void set_row_type_new(
-  struct TopologyDirectionNew* const send_direction, const int send_row,
-  struct TopologyDirectionNew* const recv_direction, const int recv_row,
   const int col_offset, const int local_rows, const int local_cols)
 {
   // Create subarray send data type
@@ -72,37 +47,28 @@ static inline void set_row_type_new(
   MPI_Type_commit(&recv_direction->recv_type);
 }
 
-
 static inline void set_corner_type(
   struct TopologyDirection* const send_direction, const int send_row, const int send_col_offset,
   struct TopologyDirection* const recv_direction, const int recv_row, const int recv_col_offset,
-  const int cols)
+  const int local_rows, const int local_cols)
 {
-  send_direction->send_offset = send_col_offset + send_row * cols;
-  recv_direction->recv_offset = recv_col_offset + recv_row * cols;
+  // Create subarray send data type
+  int array_size[]        = {local_rows + 2, local_cols + 2};
+  int array_subsize[]     = {1,              1};
+  int array_offset_send[] = {send_row,       send_col_offset};
 
-  MPI_Type_contiguous(1, MPI_C_BOOL, &send_direction->send_type);
+  MPI_Type_create_subarray(2, array_size, array_subsize, array_offset_send,
+                           MPI_ORDER_C, MPI_C_BOOL, &send_direction->send_type);
   MPI_Type_commit(&send_direction->send_type);
 
-  MPI_Type_contiguous(1, MPI_C_BOOL, &recv_direction->recv_type);
+  // Create subarray recv data type
+  int array_offset_recv[] = {recv_row,       recv_col_offset};
+  MPI_Type_create_subarray(2, array_size, array_subsize, array_offset_recv,
+                           MPI_ORDER_C, MPI_C_BOOL, &recv_direction->recv_type);
   MPI_Type_commit(&recv_direction->recv_type);
 }
 
 static inline void set_col_type(
-  struct TopologyDirection* const send_direction, const int send_col,
-  struct TopologyDirection* const recv_direction, const int recv_col,
-  const int row_offset, const int elements, const int cols)
-{
-  send_direction->send_offset = send_col + row_offset * cols;
-  recv_direction->recv_offset = recv_col + row_offset * cols;
-
-  MPI_Type_vector(elements, 1, cols, MPI_C_BOOL, &send_direction->send_type);
-  MPI_Type_commit(&send_direction->send_type);
-
-  MPI_Type_vector(elements, 1, cols, MPI_C_BOOL, &recv_direction->recv_type);
-  MPI_Type_commit(&recv_direction->recv_type);
-}
-static inline void set_col_type_new(
   struct TopologyDirection* const send_direction, const int send_col,
   struct TopologyDirection* const recv_direction, const int recv_col,
   const int row_offset, const int local_rows, const int local_cols)
@@ -218,53 +184,39 @@ int initialize_game(
 
   // Create stride types
   // north -> south
-  /*set_row_type(&game->topology.north, 1,
+  set_row_type(&game->topology.north, 1,
                &game->topology.south, game->local_rows + 1,
-               1, game->local_cols, game->local_cols + 2);*/
-  set_row_type_new(&game->topology.north, 1,
-                   &game->topology.south, game->local_rows + 1,
-                   1, game->local_rows, game->local_cols);
-
+               1, game->local_rows, game->local_cols);
 
   // north west -> south east
   set_corner_type(&game->topology.north_west, 1                   , 1,
                   &game->topology.south_east, game->local_rows + 1, game->local_cols + 1,
-                  game->local_cols + 2);
+                  game->local_rows, game->local_cols);
   // north east -> south west
   set_corner_type(&game->topology.north_east, 1                   , game->local_cols,
                   &game->topology.south_west, game->local_rows + 1, 0,
-                  game->local_cols + 2);
+                  game->local_rows, game->local_cols);
 
   // south -> north
-  /*set_row_type(&game->topology.south, game->local_rows,
+  set_row_type(&game->topology.south, game->local_rows,
                &game->topology.north, 0,
-               1, game->local_cols, game->local_cols + 2);*/
-  set_row_type_new(&game->topology.south, game->local_rows,
-                   &game->topology.north, 0,
-                   1, game->local_rows, game->local_cols);
+               1, game->local_rows, game->local_cols);
 
 
   // south west -> north east
   set_corner_type(&game->topology.south_west, game->local_rows, 1,
                   &game->topology.north_east, 0               , game->local_cols + 1,
-                  game->local_cols + 2);
+                  game->local_rows, game->local_cols);
   // south east -> north west
   set_corner_type(&game->topology.south_east, game->local_rows, game->local_cols,
                   &game->topology.north_west, 0               , 0,
-                  game->local_cols + 2);
+                  game->local_rows, game->local_cols);
 
   // east -> west
-  /*set_col_type(&game->topology.east, game->local_cols,
-               &game->topology.west, 0,
-               1, game->local_rows, game->local_cols + 2);*/
-
-  set_col_type_new(&game->topology.east, game->local_cols,
+  set_col_type(&game->topology.east, game->local_cols,
               &game->topology.west, 0,
               1, game->local_rows, game->local_cols);
   // west -> east
-  /*set_col_type(&game->topology.west, 1,
-               &game->topology.east, game->local_cols + 1,
-               1, game->local_rows, game->local_cols + 2);*/
   set_col_type(&game->topology.west, 1,
               &game->topology.east, game->local_cols + 1,
               1, game->local_rows, game->local_cols);
@@ -291,10 +243,6 @@ static inline void destroy_direction_struct(struct TopologyDirection* direction)
   MPI_Type_free(&direction->send_type);
   MPI_Type_free(&direction->recv_type);
 }
-static inline void destroy_direction_struct_new(struct TopologyDirectionNew* direction) {
-  MPI_Type_free(&direction->send_type);
-  MPI_Type_free(&direction->recv_type);
-}
 
 
 void destroy_game(GameInfo* const game) {
@@ -302,13 +250,11 @@ void destroy_game(GameInfo* const game) {
   MPI_Comm_free(&game->communicator);
 
   // free topology direction stucts
-  //destroy_direction_struct(&game->topology.north);
-  destroy_direction_struct_new(&game->topology.north);
+  destroy_direction_struct(&game->topology.north);
   destroy_direction_struct(&game->topology.north_west);
   destroy_direction_struct(&game->topology.north_east);
 
-  //destroy_direction_struct(&game->topology.south);
-  destroy_direction_struct_new(&game->topology.south);
+  destroy_direction_struct(&game->topology.south);
   destroy_direction_struct(&game->topology.south_west);
   destroy_direction_struct(&game->topology.south_east);
 
